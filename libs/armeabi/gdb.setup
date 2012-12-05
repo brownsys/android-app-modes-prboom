@@ -1,0 +1,2 @@
+set solib-search-path ./obj/local/armeabi
+directory /home/martins/android-ndk-r8b/platforms/android-8/arch-arm/usr/include jni/SDL/include /home/martins/android-ndk-r8b/sources/cxx-stl/system/include jni/SDL_net jni/SDL_net/../SDL/include jni/SDL_net/include jni/prboom jni/prboom/include jni/prboom/../SDL_net/include jni/prboom/../SDL/include

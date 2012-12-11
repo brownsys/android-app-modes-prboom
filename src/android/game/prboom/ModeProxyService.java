@@ -1,0 +1,77 @@
+package android.game.prboom;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import edu.brown.cs.systems.modes.lib.IModeService;
+import edu.brown.cs.systems.modes.lib.data.ModeData;
+import android.app.Service;
+import android.content.Intent;
+import android.os.IBinder;
+import android.os.RemoteException;
+import android.support.v4.content.LocalBroadcastManager;
+import android.util.Log;
+
+/**
+ * @author Marcelo Martins <martins@cs.brown.edu>
+ * 
+ */
+public class ModeProxyService extends Service {
+
+	private static final String TAG = "ModeProxyService";
+
+	@Override
+	public void onCreate() {
+		super.onCreate();
+		Log.d(TAG, "onCreate()");
+	}
+
+	@Override
+	public void onDestroy() {
+		super.onDestroy();
+		Log.d(TAG, "onDestroy()");
+	}
+
+	private boolean sendModeBroadcast(String modeName) {
+		Intent intent = new Intent("setMode");
+		intent.putExtra("modeName", modeName);
+
+		LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
+
+		return true;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see android.app.Service#onBind(android.content.Intent)
+	 */
+	@Override
+	public IBinder onBind(Intent intent) {
+		return new IModeService.Stub() {
+
+			@Override
+			public boolean setMode(String modeName) throws RemoteException {
+				Log.d(TAG, String.format("setMode(): %s", modeName));
+
+				sendModeBroadcast(modeName);
+
+				return false;
+			}
+
+			@Override
+			public List<ModeData> getModes() throws RemoteException {
+				Log.d(TAG, "getModes()");
+				List<ModeData> modes = new ArrayList<ModeData>();
+
+				ModeData data = new ModeData(Modes.NORMAL_DOOM, "Original resolution, music and sound");
+				modes.add(data);
+				data = new ModeData(Modes.UGLY_DOOM, "Low resolution and no music");
+				modes.add(data);
+				data = new ModeData(Modes.NEED_FIX, "Minimalist screen and no sound. For the desperate gamer");
+				modes.add(data);
+				return modes;
+			}
+		};
+	}
+}

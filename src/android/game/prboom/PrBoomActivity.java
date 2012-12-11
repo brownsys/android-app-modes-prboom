@@ -34,8 +34,12 @@ import doom.util.DialogTool;
 import doom.util.DoomTools;
 import doom.util.Natives;
 import doom.util.GameFileDownloader;
+import edu.brown.cs.systems.modes.lib.ModeManager;
 import android.app.Activity;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -45,6 +49,7 @@ import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Handler;
+import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -140,10 +145,15 @@ public class PrBoomActivity extends Activity implements Natives.EventListener,
 	
 	private HashMap.Entry<String,View> touchedViews[] = new HashMap.Entry[2]; 
 
+	private ModeManager modeManager;
+
 	/** Called when the activity is first created. */
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+		modeManager = new ModeManager(this);
+		modeManager.connectApplication();
+
 		requestWindowFeature(Window.FEATURE_NO_TITLE);
 		getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
 				WindowManager.LayoutParams.FLAG_FULLSCREEN);
@@ -176,6 +186,7 @@ public class PrBoomActivity extends Activity implements Natives.EventListener,
 		new AudioClip(this, R.raw.d1intro).play();
 
 		loadPreferences();
+
 		initMainScreen();
 		if (!DoomTools.wadsExist()) {
 			wadIdx = 0;
@@ -190,6 +201,8 @@ public class PrBoomActivity extends Activity implements Natives.EventListener,
 			// check that prboom.cfg and prboom.wad exist
 			checkForPrBoom();
 		}
+
+		LocalBroadcastManager.getInstance(this).registerReceiver(messageReceiver, new IntentFilter("setMode"));
 	}
 
 	@Override
@@ -207,8 +220,71 @@ public class PrBoomActivity extends Activity implements Natives.EventListener,
 	@Override
 	public void onStop() {
 		super.onStop();
-		DoomTools.hardExit(0);
+		savePreferences();
+		// If games exits, mode responder will be disabled.
+		//DoomTools.hardExit(0);
 	}
+
+	@Override
+	public void onDestroy() {
+		LocalBroadcastManager.getInstance(this).unregisterReceiver(
+				messageReceiver);
+		modeManager.disconnectApplication();
+		super.onDestroy();
+	}
+
+	private BroadcastReceiver messageReceiver = new BroadcastReceiver() {
+		private static final String TAG = "messageReceiver";
+
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			// Get mode name include in the Intent
+			String modeName = intent.getStringExtra("modeName");
+			Log.d(TAG, "Got message: " + modeName);
+
+			if (mGameStarted) {
+				MessageBox("Can't change mode while game in progress.");
+				return;
+			}
+
+			if (modeName.equals(Modes.NORMAL_DOOM)) {
+				((EditText) PrBoomActivity.this.findViewById(R.id.arguments))
+						.setText("");
+				((CheckBox) PrBoomActivity.this.findViewById(R.id.fullscreen))
+						.setChecked(true);
+				((CheckBox) PrBoomActivity.this.findViewById(R.id.sound))
+						.setChecked(true);
+				((CheckBox) PrBoomActivity.this.findViewById(R.id.touch))
+						.setChecked(true);
+				savePreferences();
+			} else if (modeName.equals(Modes.UGLY_DOOM)) {
+				String extraArgs = "-nomusic -w 160 -h 100";
+				((EditText) PrBoomActivity.this.findViewById(R.id.arguments))
+						.setText(extraArgs);
+				((CheckBox) PrBoomActivity.this.findViewById(R.id.fullscreen))
+						.setChecked(true);
+				((CheckBox) PrBoomActivity.this.findViewById(R.id.sound))
+						.setChecked(true);
+				((CheckBox) PrBoomActivity.this.findViewById(R.id.touch))
+						.setChecked(true);
+				savePreferences();
+			} else if (modeName.equals(Modes.NEED_FIX)) {
+				String extraArgs = "-nomusic -nosfx -w 320 -h 200";
+				((EditText) PrBoomActivity.this.findViewById(R.id.arguments))
+						.setText(extraArgs);
+				((CheckBox) PrBoomActivity.this.findViewById(R.id.fullscreen))
+						.setChecked(false);
+				((CheckBox) PrBoomActivity.this.findViewById(R.id.sound))
+						.setChecked(false);
+				((CheckBox) PrBoomActivity.this.findViewById(R.id.touch))
+						.setChecked(true);
+				savePreferences();
+			} else {
+				Toast.makeText(context, "Invalid mode: " + modeName,
+						Toast.LENGTH_SHORT).show();
+			}
+		}
+	};
 
 	/**
 	 * Play
@@ -255,7 +331,7 @@ public class PrBoomActivity extends Activity implements Natives.EventListener,
 			MessageBox("Missing required Game file " + prboom);
 			return false;
 		}
-		
+
 		// check for sound folder and create if it doesn't exist
 		File soundDir = new File(DoomTools.DOOM_SOUND_FOLDER);
 		if ( !soundDir.exists() ) {

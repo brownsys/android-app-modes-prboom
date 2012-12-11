@@ -12,6 +12,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <service android:name=".ModeProxyService" >
+            <intent-filter><action android:name="android.game.prboomModeProxyService" /></intent-filter>
+        </service>
+        
     </application>
 	
 	<uses-permission android:name="android.permission.INTERNET"></uses-permission>
